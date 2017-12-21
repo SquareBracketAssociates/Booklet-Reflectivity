@@ -1,16 +1,224 @@
-There is also a template system, you can find template in the folder ''support/template''.
-Some template are already written, but if you want to have your own, you had two solutions:
--edit the existing template related to the format you want to change (recommanded)
--create your own template with its own name and change used template in the Makefile
+!!MetaLinks
+!!!What is a MetaLink?
+!!!!Basics
+Metalinks are annotations of AST nodes that can be executed at runtime to provide behavioral variations or code instrumentation. Such an annotated AST node is expanded, compiled and executed on the fly. A link can be defined by instantiating a MetaLink object:
+[[[
+metalink := MetaLink new.
+]]]
 
-You will found some template examples in ''support/template'' folder to see how it works.
+The link needs to be configured with a ''metaobject'' and a selector. When the link is be executed, the configured selector is sent to the ''metaobject'', which executes the corresponding behavior. The following example configures the link to send the ''#now'' message to the ''Halt'' class:
 
-The default template system is ''Mustache'' but if you want to use another one it is possible.
-In that case you will have to edit the makefile to use your own template system.
+[[[
+metalink metaObject: Halt.
+metalink selector: #now.
+]]]
 
-You can also create your own ''Makefile'' rule.
-We let you know that there is a rule ''copySupport'' which copy all figures in the output directory,
-so you can use this rule when you want to.
+The link now needs to be installed, for example on the method ''#add:'' of ''OrderedCollection''. It will not be installed on the method itself, but on its AST node. The ''link:'' message has to be sent to this particular AST node on which we want to install the link, and takes the link object as an input parameter:
 
-Output directory's default name is ''book-result'' but you can change it in the Makefile by editing the
-==OUTPUTDIRECTORY== variable
+[[[
+method := OrderedCollection lookupSelector: #add:.
+node := method ast.
+node link: metalink
+]]]
+
+The system will now halt each time the ''add:'' message is sent to an ''OrderedCollection''. Note that the ''add:'' method is shared in the class hierarchy of collections in Pharo. It means that any instance of a class that shares the same version of method on which the link has been installed will halt upon reception of an ''add:'' message.
+
+The link can later be uninstalled so that it will have no more effect:
+
+[[[
+metalink uninstall
+]]]
+
+Removing or modifying a method with annonated nodes will automatically uninstall all present links from the AST of this method 
+(''i.e.'' the method node and all its children).
+
+!!!!Reifying arguments
+In the previous example, the ''add:'' method takes a parameter. We might want to access that parameter when the link executes so that we can use it. It is done by providing the ''#arguments'' reification to the link. Each time the ''add:'' message is sent to a collection, the metaobject bloc will execute and will take as an input parameter the original argument provided to the ''add:'' method:
+
+[[[
+metalink := MetaLink new.
+metalink metaObject: [:arg| Transcript show: arg printString].
+metalink selector: #value:.
+metalink arguments: #(#arguments).
+(OrderedCollection lookupSelector: #add:) ast link: metalink
+]]]
+
+The following code will print '''Hello World''' in the ''Transcript'':
+
+[[[
+OrderedCollection new add: 'Hello World'
+]]]
+
+!!!!Controlling the execution position
+For a given node, metalinks can be put at different positions:
+
+- ''#before'': the metalink is executed before the execution of the node  
+- ''#instead'': the metalink is executed instead the node
+- ''#after'': the metalink is executed after the execution of the node
+
+For example, we could configure our link to print the parameter after the ''add:'' message has returned:
+
+[[[
+metalink control: #after
+]]]
+
+==Not all the nodes provide all the positions. For example, literals don't provide ''onError'' and ''onSuccess'' positions.== 
+
+!!!!Activation and deactivation
+A link can be activated, deactivated.
+Conditions
+
+!!!!Composing links
+Put links on the same node, and discuss the execution order and also the #instead case.
+
+!!!Basic examples
+
+!!!Instance specific MetaLinks
+Since ''Pharo 7'', metalinks can be installed on specific objects.  When installing a link on a node, instead of affecting all instances of the class in which the node is located, only a given object will be touched. 
+
+The entities we manipulate do not change:
+- AST nodes
+- instances of MetaLink
+
+What changes is the way to install a link on a node. When linking to a node, we will now specify for which object the metalink will be active. In the following code, only the ==date== object will be affected, and any other instance of ==Date== will not have the link installed on the ''#asDate'' method node: 
+
+[[[
+date := Date new.
+link := MetaLink new.
+
+node := (Date lookupSelector: #asDate) ast.
+node link: link forObject: date
+]]]
+
+To the contrary of ''standard'' links, only AST nodes can be targetted by instance specific links, ''i.e.'' instances of any subclass of ==RBProgramNode==. That means that using this interface, we cannot put instance specific links on slots or variables. They can however be put on any kind of AST node.
+
+Installing an object specific link has also the effect to migrate the object to an anonymous subclass of its original class. This anonymous class can be viewed while inspecting this particular object or by introspection tools. The object however keeps all its attributes and behaviors, and is different only by the links installed on its nodes.
+
+Putting multiple instance specific links is transparent, and only one anonymous subclass will be generated for the same object. ''Standard'' links are conserved, so it is possible, for example on a given method node, to have metalinks active for all instance of the object's class, and metalinks only active for this one object.
+
+Removing an instance specific can be done by using the following interface:
+
+[[[
+node removeLink: link fromObject: date
+]]]
+
+Once the last instance-specific link is removed from the object, then it silently migrates back to its original class.
+
+It is worth noting that for every (un)install operation, the nodes are the one we can recover from the system classes. We never have to worry about the object changing its class by an anonymous one, as metalinks are able to resolve their targets during their (un)install operations.
+
+!!!The MetaLink API
+Navigating the AST to find a particular node on which install a link can be tedious and error-prone. Furthermore, it does not seem natural that all linking operations are performed on AST nodes while in reality what we meant by doing this is to install a link that will be active for a particular object, or for all instances of a given class.
+
+As a more practical way of installing links, object and classes provide a helper interface that will find AST nodes and install metalinks on it without any user intervention.
+
+Some of this interface is common to objects and classes, and some of it is restricted either to be called on classes or on instances. The common interface also has different effects depending of the entity it is called on. In the following, these interfaces are described and explained, aswell as their immediate effects.
+
+To demonstrate the MetaLink interface, we will use a ==date== object, instance of class ==Date== and a metalink:
+[[[
+date := Date new.
+metalink := MetaLink new.
+]]]
+
+!!!!Common MetaLink interface
+The common interface can be used either on classes or on their instances. The difference in effect is that links will be active for all instances of a class, if called on a class, or only for a specific object.
+
+The ==entity== variable in the code snippets below is either a class or an instance of a class.
+
+!!!!!Direct linking to a given AST node
+Giving an AST node, one can ask a class or an object to install a link on it. It is technically the same as using the ''#link:'' interface on AST nodes, but expressed in a more ''business-object-centric'' way.
+
+[[[
+anAstNode := ...get an ast node somewhere...
+entity link: metalink toAST: anAstNode.
+]]]
+
+!!!!!Direct linking to set of AST nodes
+It is the same interface as above, except that the linking is made on a group of node. The link is installed for ==entity== on each of these nodes.
+[[[
+entity link: metalink toNodes: aSetOfNodes
+]]]
+
+!!!!!Linking to a method name
+The link will be installed on the method described by the selector given as parameter. The system will actually lookup for the first method in the class hierarchy of the entity that implements this method, and will raise an error if none is found. While it poses no particular problem if ==entity== is an object, it is a bit more subtle for classes. For a given class ==C==, if the method is actually implemented higher in its class hierarchy for example in one of its superclasses ==C0==, then the link will be installed on the method found in ==C0==. It means that all instances of subclasses of ==C0==, including ==C==, will be affected by the link.
+[[[
+entity link: metalink toMethodNamed: #asDate
+]]]
+
+!!!!Class
+This interface is only available for classes and does work for individual objects. It provides helper methods to install metalinks on class variables, slots and temporary variables. Either the variable object can be used as a parameter or the name of the variable. In the latter case, more informations are usually required to input by the user. The only difference between the two interfaces is that in the first case we input the object variable as a parameter, while in the second case we input its name.
+
+In the following, all code snippets use the class ==ReflectivityExamples== as an example entity on which we install metalinks.
+
+!!!!!Linking to class variables
+
+==theClassVar== is the class variable object named ''#ClassVar''.
+
+[[[
+ReflectivityExamples link: metalink toClassVariable: theClassVar.
+ReflectivityExamples link: metalink toClassVariableNamed: #ClassVar
+]]]
+
+!!!!!Linking to slots
+
+==theSlot== is the slot object named ''#ivar''.
+
+[[[
+ReflectivityExamples link: metalink toSlot: theSlot.
+ReflectivityExamples link: metalink toSlotNamed: #ivar
+]]]
+
+!!!!!Linking to temporary variables
+
+==theTemp== is the temporary variable object named ''#temp'' in the method ''#exampleAssignment''. In the second interface, we have to provide the method name in which the temporary is located.
+
+""What happens if multiple temps with the same name in the same method ?""
+
+[[[
+ReflectivityExamples link: metalink toTemporary: theTemp.
+ReflectivityExamples link: metalink toTemporaryNamed: #temp inMethod: #exampleAssignment
+]]]
+
+
+!!!PermaLinks
+A ==PermaLink== is a metalink that is persistent. It must be installed through a dedicated interface, and only target specific nodes which are slots, class variables and temporary variables read and assignment nodes. A permalink is unique, but is bound to a ==MetaLink== that can have multiple permalinks associated.
+
+When installed on one of these kind of nodes, permalinks ensure that they are always reinstalled when a method with such nodes is added or modified. It is meant to be permanent in the system. For example a permalink installed on all read nodes of a slot will automatically be installed on a new method with read nodes of the same slot. It will also be reinstalled on a modified method if any read node still exists for this slot (even if the source code has radically changed).
+
+Permalinks are removed from all of their nodes when the user calls the ''#uninstall'' method of the bound metalink.
+
+Although permalinks can be per-object or for all instances of a class, they are compatible with all other metalinks. Removing all other metalinks from a method (for example) will not remove permalinks, unless its link is explicitely uninstalled.
+
+!!!!PermaLink API
+
+The following example illustrates how to install permalinks on temporary and class variables and on a slot. The interfaces are similar to the ==Class== metalink API, at the difference that they are available for classes and objects. In the code snippet below, permalinks are installed on an instance of the ==ReflectivityExamples== class for a temporary variable and a class variable, while it is installed on the slot ''#ivar'' for all instances of ==ReflectivityExamples==.
+
+We can also see that these interfaces take an ''option'' parameter with the ''#read'' value. It defines the persistent nature of the permalink. In that case, it will be permanently installed on all read nodes of the target entities (the temporary and class variables and the slot).
+
+[[[
+|example|
+example := ReflectivityExamples new.
+
+example link: metalink toTemporaryNamed: #temp inMethod: #exampleAssignment option: #read.
+
+example link: metalink toClassVariableNamed: #ClassVar option: #read.
+
+ReflectivityExamples link: metalink toSlotNamed: #ivar option: #read
+]]]
+
+!!!!PermaLinks options
+A permalink specifies one option that defines on which nodes it will be permanently installed. It can be one of the following:
+
+- \#read will install the permalinks on all read nodes of the target entity
+- \#write will install the permalinks on all assignement nodes of the target entity
+- \#all both read and assignment nodes will be targeted
+
+!!!!!Object specific API
+It could be interesting to have a similar interface than the ==Class== metalink API buf for given objects. It allows easy installation of metalinks on specific entities. For instances of classes, the following is equivalent to the permanent API with the option ''#all'':
+
+[[[
+|example|
+example := ReflectivityExamples new.
+example link: metalink toSlotNamed: #ivar.
+example link: metalink toClassVariableNamed: #ClassVar. 
+example link: metalink toTemporaryNamed: #temp inMethod: #exampleAssignment
+]]]

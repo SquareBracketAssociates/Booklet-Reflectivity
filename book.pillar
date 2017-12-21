@@ -1,0 +1,15 @@
+!!Introduction
+- why we need reflection and...s
+- ...what is reflection
+- introduce Reflectivity
+- Explain how the book is structured and how to read it
+
+${inputFile:Chapters/Chapter2/chapter2.pillar}$
+${inputFile:Chapters/Chapter3/chapter3.pillar}$
+
+!!MetaLinks in action
+!!!A nice usecase example
+!!!Another nice usecase example
+!!!A very nice usecase but more complex (real usecase?)
+
+!!MetaLinks trick and tips
