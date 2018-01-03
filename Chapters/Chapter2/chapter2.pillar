@@ -1,5 +1,6 @@
 !!MetaLinks
 !!!What is a MetaLink?
+!!!!A trivial example
 !!!!Basics
 Metalinks are annotations of AST nodes that can be executed at runtime to provide behavioral variations or code instrumentation. Such an annotated AST node is expanded, compiled and executed on the fly. A link can be defined by instantiating a MetaLink object:
 [[[
@@ -29,7 +30,7 @@ The link can later be uninstalled so that it will have no more effect:
 metalink uninstall
 ]]]
 
-Removing or modifying a method with annonated nodes will automatically uninstall all present links from the AST of this method 
+Removing or modifying a method with annonated nodes will automatically uninstall all present links from the AST of this method
 (''i.e.'' the method node and all its children).
 
 !!!!Reifying arguments
@@ -52,7 +53,7 @@ OrderedCollection new add: 'Hello World'
 !!!!Controlling the execution position
 For a given node, metalinks can be put at different positions:
 
-- ''#before'': the metalink is executed before the execution of the node  
+- ''#before'': the metalink is executed before the execution of the node
 - ''#instead'': the metalink is executed instead the node
 - ''#after'': the metalink is executed after the execution of the node
 
@@ -62,7 +63,7 @@ For example, we could configure our link to print the parameter after the ''add:
 metalink control: #after
 ]]]
 
-==Not all the nodes provide all the positions. For example, literals don't provide ''onError'' and ''onSuccess'' positions.== 
+==Not all the nodes provide all the positions. For example, literals don't provide ''onError'' and ''onSuccess'' positions.==
 
 !!!!Activation and deactivation
 A link can be activated, deactivated.
@@ -74,13 +75,13 @@ Put links on the same node, and discuss the execution order and also the #instea
 !!!Basic examples
 
 !!!Instance specific MetaLinks
-Since ''Pharo 7'', metalinks can be installed on specific objects.  When installing a link on a node, instead of affecting all instances of the class in which the node is located, only a given object will be touched. 
+Since ''Pharo 7'', metalinks can be installed on specific objects.  When installing a link on a node, instead of affecting all instances of the class in which the node is located, only a given object will be touched.
 
 The entities we manipulate do not change:
 - AST nodes
 - instances of MetaLink
 
-What changes is the way to install a link on a node. When linking to a node, we will now specify for which object the metalink will be active. In the following code, only the ==date== object will be affected, and any other instance of ==Date== will not have the link installed on the ''#asDate'' method node: 
+What changes is the way to install a link on a node. When linking to a node, we will now specify for which object the metalink will be active. In the following code, only the ==date== object will be affected, and any other instance of ==Date== will not have the link installed on the ''#asDate'' method node:
 
 [[[
 date := Date new.
@@ -96,36 +97,37 @@ Installing an object specific link has also the effect to migrate the object to 
 
 Putting multiple instance specific links is transparent, and only one anonymous subclass will be generated for the same object. ''Standard'' links are conserved, so it is possible, for example on a given method node, to have metalinks active for all instance of the object's class, and metalinks only active for this one object.
 
-Removing an instance specific can be done by using the following interface:
-
+The standard interface ''\#removeLink:'' cannot be used to remove instance specific links: it would remove all standard links on the node but not the object-specific ones. Removing an instance specific can be done by using the following interface instead:
+@@todo Need to check that in the code, and write a test about it!
 [[[
 node removeLink: link fromObject: date
 ]]]
+
+However, uninstalling a link through the ''\#uninstall'' interface will always work. In that case, the MetaLink will be removed from every node it has been installed on:
+
+[[[
+link uninstall
+]]]
+
 
 Once the last instance-specific link is removed from the object, then it silently migrates back to its original class.
 
 It is worth noting that for every (un)install operation, the nodes are the one we can recover from the system classes. We never have to worry about the object changing its class by an anonymous one, as metalinks are able to resolve their targets during their (un)install operations.
 
 !!!The MetaLink API
-Navigating the AST to find a particular node on which install a link can be tedious and error-prone. Furthermore, it does not seem natural that all linking operations are performed on AST nodes while in reality what we meant by doing this is to install a link that will be active for a particular object, or for all instances of a given class.
+Navigating the AST to find a particular node on which install a link can be tedious and error-prone. Furthermore, it does not seem natural that all linking operations are performed on AST nodes while in reality what we meant is to install a link that will be active for a particular object, or for all instances of a given class.
 
 As a more practical way of installing links, object and classes provide a helper interface that will find AST nodes and install metalinks on it without any user intervention.
 
-Some of this interface is common to objects and classes, and some of it is restricted either to be called on classes or on instances. The common interface also has different effects depending of the entity it is called on. In the following, these interfaces are described and explained, aswell as their immediate effects.
+This interface is common to objects and classes. In the following, the MetaLink API is described and explained, aswell as its immediate effects.
 
-To demonstrate the MetaLink interface, we will use a ==date== object, instance of class ==Date== and a metalink:
-[[[
-date := Date new.
-metalink := MetaLink new.
-]]]
-
-!!!!Common MetaLink interface
-The common interface can be used either on classes or on their instances. The difference in effect is that links will be active for all instances of a class, if called on a class, or only for a specific object.
+!!!!MetaLink interface
+The MetaLink interface can be used either on classes or on their instances. The difference in effect is that links will be active for all instances of a class, if called on a class, or only for a specific object.
 
 The ==entity== variable in the code snippets below is either a class or an instance of a class.
 
 !!!!!Direct linking to a given AST node
-Giving an AST node, one can ask a class or an object to install a link on it. It is technically the same as using the ''#link:'' interface on AST nodes, but expressed in a more ''business-object-centric'' way.
+Giving an AST node, one can ask a class or an object to install a link on it. It is technically the same as using the ''#link:'' interface on AST nodes, but expressed in a more ''object-centric'' way.
 
 [[[
 anAstNode := ...get an ast node somewhere...
@@ -144,40 +146,57 @@ The link will be installed on the method described by the selector given as para
 entity link: metalink toMethodNamed: #asDate
 ]]]
 
-!!!!Class
-This interface is only available for classes and does work for individual objects. It provides helper methods to install metalinks on class variables, slots and temporary variables. Either the variable object can be used as a parameter or the name of the variable. In the latter case, more informations are usually required to input by the user. The only difference between the two interfaces is that in the first case we input the object variable as a parameter, while in the second case we input its name.
+!!!!Linking to slots and variables
+This interface is available for classes and for individual objects. It provides helper methods to install metalinks on class variables, slots and temporary variables. Variables and slots are always referenced by their name. More informations are usually required to input by the user, for example the method name in which the wanted temporary variable is located.
 
-In the following, all code snippets use the class ==ReflectivityExamples== as an example entity on which we install metalinks.
+Installing a metalink on a slot or a variable will actually install the link on all ast nodes that either read or write the target slot or variable.
+
+In the following, all code snippets use the class ==ReflectivityExamples== as an example: the entity on which we install metalinks can be either the class ==ReflectivityExamples== and links will affect all instances of this class, or an instance of ==ReflectivityExamples== in which case the link will only affect this object.
 
 !!!!!Linking to class variables
 
-==theClassVar== is the class variable object named ''#ClassVar''.
+''#ClassVar'' is the name of the class variable on which we want to install the link.
 
 [[[
-ReflectivityExamples link: metalink toClassVariable: theClassVar.
-ReflectivityExamples link: metalink toClassVariableNamed: #ClassVar
+ReflectivityExamples link: metalink toClassVariableNamed: #ClassVar.
+ReflectivityExamples new link: metalink toClassVariableNamed: #ClassVar.
 ]]]
 
 !!!!!Linking to slots
 
-==theSlot== is the slot object named ''#ivar''.
+''#ivar'' is the name of the target slot on which we want to install the link.
 
 [[[
-ReflectivityExamples link: metalink toSlot: theSlot.
-ReflectivityExamples link: metalink toSlotNamed: #ivar
+ReflectivityExamples link: metalink toSlotNamed: #ivar.
+ReflectivityExamples new link: metalink toSlotNamed: #ivar.
 ]]]
 
 !!!!!Linking to temporary variables
 
-==theTemp== is the temporary variable object named ''#temp'' in the method ''#exampleAssignment''. In the second interface, we have to provide the method name in which the temporary is located.
-
-""What happens if multiple temps with the same name in the same method ?""
+''#temp'' is the name of the temporary variable object in the method ''#exampleAssignment''. We always have to provide the method name in which the temporary is located.
 
 [[[
-ReflectivityExamples link: metalink toTemporary: theTemp.
-ReflectivityExamples link: metalink toTemporaryNamed: #temp inMethod: #exampleAssignment
+ReflectivityExamples link: metalink toTemporaryNamed: #temp inMethod: #exampleAssignment.
+ReflectivityExamples new link: metalink toTemporaryNamed: #temp inMethod: #exampleAssignment.
 ]]]
 
+!!!!API options
+An option can be specified when installing on a variable, so that assignments nodes or reads nodes of this variable can be specifically targeted.
+The option is specified through the ''#option:'' keyword for each interface, respectively:
+
+[[[
+ReflectivityExamples link: metalink toClassVariableNamed: #ClassVar option: #read.
+ReflectivityExamples link: metalink toSlotNamed: #ivar option: #write.
+ReflectivityExamples link: metalink toTemporary: #temp option: #all.
+]]]
+
+The option value can be one of the following:
+
+- \#read will install the permalinks on all read nodes of the target entity
+- \#write will install the permalinks on all assignement nodes of the target entity
+- \#all both read and assignment nodes will be targeted
+
+When the option is not specified when calling an interface, it is equivalent to the \#all option, ''i.e.'' it will be installed on all nodes referencing the target variable or slot.
 
 !!!PermaLinks
 A ==PermaLink== is a metalink that is persistent. It must be installed through a dedicated interface, and only target specific nodes which are slots, class variables and temporary variables read and assignment nodes. A permalink is unique, but is bound to a ==MetaLink== that can have multiple permalinks associated.
@@ -190,35 +209,23 @@ Although permalinks can be per-object or for all instances of a class, they are 
 
 !!!!PermaLink API
 
-The following example illustrates how to install permalinks on temporary and class variables and on a slot. The interfaces are similar to the ==Class== metalink API, at the difference that they are available for classes and objects. In the code snippet below, permalinks are installed on an instance of the ==ReflectivityExamples== class for a temporary variable and a class variable, while it is installed on the slot ''#ivar'' for all instances of ==ReflectivityExamples==.
+The following example illustrates how to install permalinks on temporary and class variables and on a slot. The interface is similar to the metalink API, at the difference that it uses the ''\#permaLink:'' keyword instead of ''\#link:''. In the code snippet below, permalinks are installed on an instance of the ==ReflectivityExamples== class for a temporary variable and a class variable, while it is installed on the slot ''#ivar'' for all instances of ==ReflectivityExamples==.
 
-We can also see that these interfaces take an ''option'' parameter with the ''#read'' value. It defines the persistent nature of the permalink. In that case, it will be permanently installed on all read nodes of the target entities (the temporary and class variables and the slot).
+The ''\#option:'' parameter defines the persistent nature of the permalink. It is by default installed on all user nodes of the target entity if it is not specified, or at the discretion of the user on read or write nodes of the target entity.
 
 [[[
 |example|
 example := ReflectivityExamples new.
 
-example link: metalink toTemporaryNamed: #temp inMethod: #exampleAssignment option: #read.
+"PermaLink on all user nodes of the temporary named #temp in #exampleAssignment"
+example permaLink: metalink toTemporaryNamed: #temp inMethod: #exampleAssignment.
 
-example link: metalink toClassVariableNamed: #ClassVar option: #read.
+"PermaLink on all read nodes of the class variable named #classVar"
+example permaLink: metalink toClassVariableNamed: #ClassVar option: #read.
 
-ReflectivityExamples link: metalink toSlotNamed: #ivar option: #read
+"PermaLink on all assignment nodes of the slot named #ivar"
+ReflectivityExamples permaLink: metalink toSlotNamed: #ivar option: #write
 ]]]
 
 !!!!PermaLinks options
-A permalink specifies one option that defines on which nodes it will be permanently installed. It can be one of the following:
-
-- \#read will install the permalinks on all read nodes of the target entity
-- \#write will install the permalinks on all assignement nodes of the target entity
-- \#all both read and assignment nodes will be targeted
-
-!!!!!Object specific API
-It could be interesting to have a similar interface than the ==Class== metalink API buf for given objects. It allows easy installation of metalinks on specific entities. For instances of classes, the following is equivalent to the permanent API with the option ''#all'':
-
-[[[
-|example|
-example := ReflectivityExamples new.
-example link: metalink toSlotNamed: #ivar.
-example link: metalink toClassVariableNamed: #ClassVar. 
-example link: metalink toTemporaryNamed: #temp inMethod: #exampleAssignment
-]]]
+A permalink can specify one option that defines on which nodes it will be permanently installed. Options are the same as the MetaLink API options.

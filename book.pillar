@@ -7,6 +7,9 @@
 ${inputFile:Chapters/Chapter2/chapter2.pillar}$
 ${inputFile:Chapters/Chapter3/chapter3.pillar}$
 
+The Reflectivity version we refer to is the following:
+https://github.com/StevenCostiou/Reflectivity-dev
+
 !!MetaLinks in action
 !!!A nice usecase example
 !!!Another nice usecase example
