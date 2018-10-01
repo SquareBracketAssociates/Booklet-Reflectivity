@@ -23,6 +23,7 @@ install:
   
 script:
   - ./pillar/build/pillar build pdf
+
 deploy:
 - provider: bintray
   file: .bintray.json
