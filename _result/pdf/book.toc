@@ -1,0 +1,54 @@
+\changetocdepth {1}
+\contentsline {chapter}{Illustrations}{ii}{section*.1}
+\needspace {3\baselineskip }
+\contentsline {chapter}{\chapternumberline {1}Introduction}{1}{chapter.1}
+\needspace {3\baselineskip }
+\contentsline {chapter}{\chapternumberline {2}MetaLinks}{3}{chapter.2}
+\contentsline {section}{\numberline {2.1}What is a MetaLink?}{3}{section.2.1}
+\contentsline {subsection}{A trivial example}{3}{section*.2}
+\contentsline {subsection}{Basics}{3}{section*.3}
+\contentsline {subsection}{Reifying arguments}{4}{section*.4}
+\contentsline {subsection}{Controlling the execution position}{4}{section*.5}
+\contentsline {subsection}{Activation and deactivation}{4}{section*.6}
+\contentsline {subsection}{Composing links}{5}{section*.7}
+\contentsline {section}{\numberline {2.2}Basic examples}{5}{section.2.2}
+\contentsline {section}{\numberline {2.3}Instance specific MetaLinks}{5}{section.2.3}
+\contentsline {section}{\numberline {2.4}The MetaLink API}{6}{section.2.4}
+\contentsline {subsection}{MetaLink interface}{6}{section*.8}
+\contentsline {subsubsection}{Direct linking to a given AST node}{6}{section*.9}
+\contentsline {subsubsection}{Direct linking to set of AST nodes}{7}{section*.10}
+\contentsline {subsubsection}{Linking to a method name}{7}{section*.11}
+\contentsline {subsection}{Linking to slots and variables}{7}{section*.12}
+\contentsline {subsubsection}{Linking to class variables}{7}{section*.13}
+\contentsline {subsubsection}{Linking to slots}{8}{section*.14}
+\contentsline {subsubsection}{Linking to temporary variables}{8}{section*.15}
+\contentsline {subsection}{API options}{8}{section*.16}
+\contentsline {section}{\numberline {2.5}PermaLinks}{8}{section.2.5}
+\contentsline {subsection}{PermaLink API}{9}{section*.17}
+\contentsline {subsection}{PermaLinks options}{9}{section*.18}
+\needspace {3\baselineskip }
+\contentsline {chapter}{\chapternumberline {3}Deeper into MetaLinks}{11}{chapter.3}
+\contentsline {section}{\numberline {3.1}Reflectivity reifications}{11}{section.3.1}
+\contentsline {subsection}{RFArgumentsReification}{12}{section*.19}
+\contentsline {subsection}{RFClassReification}{12}{section*.20}
+\contentsline {subsection}{RFReceiverReification}{12}{section*.21}
+\contentsline {subsection}{RFEntityReification}{13}{section*.22}
+\contentsline {subsection}{RFLinkReification}{13}{section*.23}
+\contentsline {subsection}{RFNameReification}{13}{section*.24}
+\contentsline {subsection}{RFNewValueReification}{14}{section*.25}
+\contentsline {subsection}{RFNodeReification}{14}{section*.26}
+\contentsline {subsection}{RFObjectReification}{14}{section*.27}
+\contentsline {subsection}{RFSelectorReification}{15}{section*.28}
+\contentsline {subsection}{RFSenderReification}{15}{section*.29}
+\contentsline {subsection}{RFThisContextReification}{15}{section*.30}
+\contentsline {subsection}{RFValueReification}{16}{section*.31}
+\contentsline {subsection}{RFVariableReification}{16}{section*.32}
+\contentsline {section}{\numberline {3.2}MetaLink options}{16}{section.3.2}
+\contentsline {section}{\numberline {3.3}More complex examples}{17}{section.3.3}
+\needspace {3\baselineskip }
+\contentsline {chapter}{\chapternumberline {4}MetaLinks in action}{19}{chapter.4}
+\contentsline {section}{\numberline {4.1}A nice usecase example}{19}{section.4.1}
+\contentsline {section}{\numberline {4.2}Another nice usecase example}{19}{section.4.2}
+\contentsline {section}{\numberline {4.3}A very nice usecase but more complex (real usecase?)}{19}{section.4.3}
+\needspace {3\baselineskip }
+\contentsline {chapter}{\chapternumberline {5}MetaLinks trick and tips}{21}{chapter.5}

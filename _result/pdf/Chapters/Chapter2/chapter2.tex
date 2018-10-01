@@ -1,0 +1,321 @@
+% -*- mode: latex; -*- mustache tags:  
+\documentclass[10pt,twoside,english]{_support/latex/sbabook/sbabook}
+\let\wholebook=\relax
+
+\usepackage{import}
+\subimport{_support/latex/}{common.tex}
+
+%=================================================================
+% Debug packages for page layout and overfull lines
+% Remove the showtrims document option before printing
+\ifshowtrims
+  \usepackage{showframe}
+  \usepackage[color=magenta,width=5mm]{_support/latex/overcolored}
+\fi
+
+
+% =================================================================
+\title{Reflectivity}
+\author{??Marcus Denker and ??Steven Costiou and ??Vincent Aranega}
+\series{The Pharo Technology Collection}
+
+\hypersetup{
+  pdftitle = {Reflectivity},
+  pdfauthor = {??Marcus Denker and ??Steven Costiou and ??Vincent Aranega},
+  pdfkeywords = {Reflective programming, Pharo}
+}
+
+
+% =================================================================
+\begin{document}
+
+% Title page and colophon on verso
+\maketitle
+\pagestyle{titlingpage}
+\thispagestyle{titlingpage} % \pagestyle does not work on the first one…
+
+\cleartoverso
+{\small
+
+  Copyright 2017 by ??Marcus Denker and ??Steven Costiou and ??Vincent Aranega.
+
+  The contents of this book are protected under the Creative Commons
+  Attribution-ShareAlike 3.0 Unported license.
+
+  You are \textbf{free}:
+  \begin{itemize}
+  \item to \textbf{Share}: to copy, distribute and transmit the work,
+  \item to \textbf{Remix}: to adapt the work,
+  \end{itemize}
+
+  Under the following conditions:
+  \begin{description}
+  \item[Attribution.] You must attribute the work in the manner specified by the
+    author or licensor (but not in any way that suggests that they endorse you
+    or your use of the work).
+  \item[Share Alike.] If you alter, transform, or build upon this work, you may
+    distribute the resulting work only under the same, similar or a compatible
+    license.
+  \end{description}
+
+  For any reuse or distribution, you must make clear to others the
+  license terms of this work. The best way to do this is with a link to
+  this web page: \\
+  \url{http://creativecommons.org/licenses/by-sa/3.0/}
+
+  Any of the above conditions can be waived if you get permission from
+  the copyright holder. Nothing in this license impairs or restricts the
+  author's moral rights.
+
+  \begin{center}
+    \includegraphics[width=0.2\textwidth]{_support/latex/sbabook/CreativeCommons-BY-SA.pdf}
+  \end{center}
+
+  Your fair dealing and other rights are in no way affected by the
+  above. This is a human-readable summary of the Legal Code (the full
+  license): \\
+  \url{http://creativecommons.org/licenses/by-sa/3.0/legalcode}
+
+  \vfill
+
+  % Publication info would go here (publisher, ISBN, cover design…)
+  Layout and typography based on the \textcode{sbabook} \LaTeX{} class by Damien
+  Pollet.
+}
+
+
+\frontmatter
+\pagestyle{plain}
+
+\tableofcontents*
+\clearpage\listoffigures
+
+\mainmatter
+
+\chapter{MetaLinks}\section{What is a MetaLink?}\subsection{A trivial example}\subsection{Basics}
+Metalinks are annotations of AST nodes that can be executed at runtime to provide behavioral variations or code instrumentation. Such an annotated AST node is expanded, compiled and executed on the fly. A link can be defined by instantiating a MetaLink object:
+
+\begin{displaycode}{plain}
+metalink := MetaLink new.
+\end{displaycode}
+
+The link needs to be configured with a \textit{metaobject} and a selector. When the link is be executed, the configured selector is sent to the \textit{metaobject}, which executes the corresponding behavior. The following example configures the link to send the \textit{\#now} message to the \textit{Halt} class:
+
+\begin{displaycode}{plain}
+metalink metaObject: Halt.
+metalink selector: #now.
+\end{displaycode}
+
+The link now needs to be installed, for example on the method \textit{\#add:} of \textit{OrderedCollection}. It will not be installed on the method itself, but on its AST node. The \textit{link:} message has to be sent to this particular AST node on which we want to install the link, and takes the link object as an input parameter:
+
+\begin{displaycode}{plain}
+method := OrderedCollection lookupSelector: #add:.
+node := method ast.
+node link: metalink
+\end{displaycode}
+
+The system will now halt each time the \textit{add:} message is sent to an \textit{OrderedCollection}. Note that the \textit{add:} method is shared in the class hierarchy of collections in Pharo. It means that any instance of a class that shares the same version of method on which the link has been installed will halt upon reception of an \textit{add:} message.
+
+The link can later be uninstalled so that it will have no more effect:
+
+\begin{displaycode}{plain}
+metalink uninstall
+\end{displaycode}
+
+Removing or modifying a method with annonated nodes will automatically uninstall all present links from the AST of this method
+(\textit{i.e.} the method node and all its children).
+\subsection{Reifying arguments}
+In the previous example, the \textit{add:} method takes a parameter. We might want to access that parameter when the link executes so that we can use it. It is done by providing the \textit{\#arguments} reification to the link. Each time the \textit{add:} message is sent to a collection, the metaobject bloc will execute and will take as an input parameter the original argument provided to the \textit{add:} method:
+
+\begin{displaycode}{plain}
+metalink := MetaLink new.
+metalink metaObject: [:arg| Transcript show: arg printString].
+metalink selector: #value:.
+metalink arguments: #(#arguments).
+(OrderedCollection lookupSelector: #add:) ast link: metalink
+\end{displaycode}
+
+The following code will print \textit{'Hello World}' in the \textit{Transcript}:
+
+\begin{displaycode}{plain}
+OrderedCollection new add: 'Hello World'
+\end{displaycode}
+\subsection{Controlling the execution position}
+For a given node, metalinks can be put at different positions:
+
+\begin{itemize}
+\item \textit{\#before}: the metalink is executed before the execution of the node
+\item \textit{\#instead}: the metalink is executed instead the node
+\item \textit{\#after}: the metalink is executed after the execution of the node
+\end{itemize}
+
+For example, we could configure our link to print the parameter after the \textit{add:} message has returned:
+
+\begin{displaycode}{plain}
+metalink control: #after
+\end{displaycode}
+
+\textcode{Not all the nodes provide all the positions. For example, literals don't provide \textit{onError} and \textit{onSuccess} positions.}
+\subsection{Activation and deactivation}
+A link can be activated, deactivated.
+Conditions
+\subsection{Composing links}
+Put links on the same node, and discuss the execution order and also the \#instead case.
+\section{Basic examples}\section{Instance specific MetaLinks}
+Since \textit{Pharo 7}, metalinks can be installed on specific objects.  When installing a link on a node, instead of affecting all instances of the class in which the node is located, only a given object will be touched.
+
+The entities we manipulate do not change:
+
+\begin{itemize}
+\item AST nodes
+\item instances of MetaLink
+\end{itemize}
+
+What changes is the way to install a link on a node. When linking to a node, we will now specify for which object the metalink will be active. In the following code, only the \textcode{date} object will be affected, and any other instance of \textcode{Date} will not have the link installed on the \textit{\#asDate} method node:
+
+\begin{displaycode}{plain}
+date := Date new.
+link := MetaLink new.
+
+node := (Date lookupSelector: #asDate) ast.
+node link: link forObject: date
+\end{displaycode}
+
+To the contrary of \textit{standard} links, only AST nodes can be targetted by instance specific links, \textit{i.e.} instances of any subclass of \textcode{RBProgramNode}. That means that using this interface, we cannot put instance specific links on slots or variables. They can however be put on any kind of AST node.
+
+Installing an object specific link has also the effect to migrate the object to an anonymous subclass of its original class. This anonymous class can be viewed while inspecting this particular object or by introspection tools. The object however keeps all its attributes and behaviors, and is different only by the links installed on its nodes.
+
+Putting multiple instance specific links is transparent, and only one anonymous subclass will be generated for the same object. \textit{Standard} links are conserved, so it is possible, for example on a given method node, to have metalinks active for all instance of the object's class, and metalinks only active for this one object.
+
+The standard interface \textit{\#removeLink:} cannot be used to remove instance specific links: it would remove all standard links on the node but not the object-specific ones. Removing an instance specific can be done by using the following interface instead:
+
+\begin{todo}
+Need to check that in the code, and write a test about it!
+\end{todo}
+
+\begin{displaycode}{plain}
+node removeLink: link fromObject: date
+\end{displaycode}
+
+However, uninstalling a link through the \textit{\#uninstall} interface will always work. In that case, the MetaLink will be removed from every node it has been installed on:
+
+\begin{displaycode}{plain}
+link uninstall
+\end{displaycode}
+
+Once the last instance-specific link is removed from the object, then it silently migrates back to its original class.
+
+It is worth noting that for every (un)install operation, the nodes are the one we can recover from the system classes. We never have to worry about the object changing its class by an anonymous one, as metalinks are able to resolve their targets during their (un)install operations.
+\section{The MetaLink API}
+Navigating the AST to find a particular node on which install a link can be tedious and error-prone. Furthermore, it does not seem natural that all linking operations are performed on AST nodes while in reality what we meant is to install a link that will be active for a particular object, or for all instances of a given class.
+
+As a more practical way of installing links, object and classes provide a helper interface that will find AST nodes and install metalinks on it without any user intervention.
+
+This interface is common to objects and classes. In the following, the MetaLink API is described and explained, aswell as its immediate effects.
+\subsection{MetaLink interface}
+The MetaLink interface can be used either on classes or on their instances. The difference in effect is that links will be active for all instances of a class, if called on a class, or only for a specific object.
+
+The \textcode{entity} variable in the code snippets below is either a class or an instance of a class.
+\subsubsection{Direct linking to a given AST node}
+Giving an AST node, one can ask a class or an object to install a link on it. It is technically the same as using the \textit{\#link:} interface on AST nodes, but expressed in a more \textit{object-centric} way.
+
+\begin{displaycode}{plain}
+anAstNode := ...get an ast node somewhere...
+entity link: metalink toAST: anAstNode.
+\end{displaycode}
+\subsubsection{Direct linking to set of AST nodes}
+It is the same interface as above, except that the linking is made on a group of node. The link is installed for \textcode{entity} on each of these nodes.
+
+\begin{displaycode}{plain}
+entity link: metalink toNodes: aSetOfNodes
+\end{displaycode}
+\subsubsection{Linking to a method name}
+The link will be installed on the method described by the selector given as parameter. The system will actually lookup for the first method in the class hierarchy of the entity that implements this method, and will raise an error if none is found. While it poses no particular problem if \textcode{entity} is an object, it is a bit more subtle for classes. For a given class \textcode{C}, if the method is actually implemented higher in its class hierarchy for example in one of its superclasses \textcode{C0}, then the link will be installed on the method found in \textcode{C0}. It means that all instances of subclasses of \textcode{C0}, including \textcode{C}, will be affected by the link.
+
+\begin{displaycode}{plain}
+entity link: metalink toMethodNamed: #asDate
+\end{displaycode}
+\subsection{Linking to slots and variables}
+This interface is available for classes and for individual objects. It provides helper methods to install metalinks on class variables, slots and temporary variables. Variables and slots are always referenced by their name. More informations are usually required to input by the user, for example the method name in which the wanted temporary variable is located.
+
+Installing a metalink on a slot or a variable will actually install the link on all ast nodes that either read or write the target slot or variable.
+
+In the following, all code snippets use the class \textcode{ReflectivityExamples} as an example: the entity on which we install metalinks can be either the class \textcode{ReflectivityExamples} and links will affect all instances of this class, or an instance of \textcode{ReflectivityExamples} in which case the link will only affect this object.
+\subsubsection{Linking to class variables}
+\textit{\#ClassVar} is the name of the class variable on which we want to install the link.
+
+\begin{displaycode}{plain}
+ReflectivityExamples link: metalink toClassVariableNamed: #ClassVar.
+ReflectivityExamples new link: metalink toClassVariableNamed: #ClassVar.
+\end{displaycode}
+\subsubsection{Linking to slots}
+\textit{\#ivar} is the name of the target slot on which we want to install the link.
+
+\begin{displaycode}{plain}
+ReflectivityExamples link: metalink toSlotNamed: #ivar.
+ReflectivityExamples new link: metalink toSlotNamed: #ivar.
+\end{displaycode}
+\subsubsection{Linking to temporary variables}
+\textit{\#temp} is the name of the temporary variable object in the method \textit{\#exampleAssignment}. We always have to provide the method name in which the temporary is located.
+
+\begin{displaycode}{plain}
+ReflectivityExamples link: metalink toTemporaryNamed: #temp inMethod: #exampleAssignment.
+ReflectivityExamples new link: metalink toTemporaryNamed: #temp inMethod: #exampleAssignment.
+\end{displaycode}
+\subsection{API options}
+An option can be specified when installing on a variable, so that assignments nodes or reads nodes of this variable can be specifically targeted.
+The option is specified through the \textit{\#option:} keyword for each interface, respectively:
+
+\begin{displaycode}{plain}
+ReflectivityExamples link: metalink toClassVariableNamed: #ClassVar option: #read.
+ReflectivityExamples link: metalink toSlotNamed: #ivar option: #write.
+ReflectivityExamples link: metalink toTemporary: #temp option: #all.
+\end{displaycode}
+
+The option value can be one of the following:
+
+\begin{itemize}
+\item \#read will install the permalinks on all read nodes of the target entity
+\item \#write will install the permalinks on all assignement nodes of the target entity
+\item \#all both read and assignment nodes will be targeted
+\end{itemize}
+
+When the option is not specified when calling an interface, it is equivalent to the \#all option, \textit{i.e.} it will be installed on all nodes referencing the target variable or slot.
+\section{PermaLinks}
+A \textcode{PermaLink} is a metalink that is persistent. It must be installed through a dedicated interface, and only target specific nodes which are slots, class variables and temporary variables read and assignment nodes. A permalink is unique, but is bound to a \textcode{MetaLink} that can have multiple permalinks associated.
+
+When installed on one of these kind of nodes, permalinks ensure that they are always reinstalled when a method with such nodes is added or modified. It is meant to be permanent in the system. For example a permalink installed on all read nodes of a slot will automatically be installed on a new method with read nodes of the same slot. It will also be reinstalled on a modified method if any read node still exists for this slot (even if the source code has radically changed).
+
+Permalinks are removed from all of their nodes when the user calls the \textit{\#uninstall} method of the bound metalink.
+
+Although permalinks can be per-object or for all instances of a class, they are compatible with all other metalinks. Removing all other metalinks from a method (for example) will not remove permalinks, unless its link is explicitely uninstalled.
+\subsection{PermaLink API}
+The following example illustrates how to install permalinks on temporary and class variables and on a slot. The interface is similar to the metalink API, at the difference that it uses the \textit{\#permaLink:} keyword instead of \textit{\#link:}. In the code snippet below, permalinks are installed on an instance of the \textcode{ReflectivityExamples} class for a temporary variable and a class variable, while it is installed on the slot \textit{\#ivar} for all instances of \textcode{ReflectivityExamples}.
+
+The \textit{\#option:} parameter defines the persistent nature of the permalink. It is by default installed on all user nodes of the target entity if it is not specified, or at the discretion of the user on read or write nodes of the target entity.
+
+\begin{displaycode}{plain}
+|example|
+example := ReflectivityExamples new.
+
+"PermaLink on all user nodes of the temporary named #temp in #exampleAssignment"
+example permaLink: metalink toTemporaryNamed: #temp inMethod: #exampleAssignment.
+
+"PermaLink on all read nodes of the class variable named #classVar"
+example permaLink: metalink toClassVariableNamed: #ClassVar option: #read.
+
+"PermaLink on all assignment nodes of the slot named #ivar"
+ReflectivityExamples permaLink: metalink toSlotNamed: #ivar option: #write
+\end{displaycode}
+\subsection{PermaLinks options}
+A permalink can specify one option that defines on which nodes it will be permanently installed. Options are the same as the MetaLink API options.
+
+
+
+% lulu requires an empty page at the end. That's why I'm using
+% \backmatter here.
+\backmatter
+
+% Index would go here
+
+\end{document}
