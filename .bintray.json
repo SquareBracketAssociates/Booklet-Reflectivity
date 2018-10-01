@@ -18,7 +18,7 @@
 
     "files": [
         {
-            "includePattern": "build/reflectivity.spiral.pdf",
+            "includePattern": "_result/pdf/book.pdf",
             "uploadPattern": "$reflectivity-wip.pdf",
             "matrixParams": { "override": 1 }
         }
