@@ -1,2 +1,0 @@
-link metaObject: [:var| ...].
-link arguments: #(#variable)
