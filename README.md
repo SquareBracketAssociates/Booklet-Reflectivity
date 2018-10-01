@@ -14,8 +14,10 @@ The result from the latest successful Travis build can be found [on Bintray (PDF
 
 ## To latex it locally
 
+Install Pillar using http://github.com/pillar-markup/pillar
+For the time being, checkout the dev-7 branch using -b dev-7
+
+Once pillar is installer
 ```
-make
-make bootstrap
-make spiral
+pillar build pdf
 ```
